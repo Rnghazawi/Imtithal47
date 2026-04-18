@@ -1,40 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restricted Access</title>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f4f9; }
-        .login-card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
-        input { padding: 10px; width: 200px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
-        button { padding: 10px 20px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #005a9e; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Restricted Access</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f4f4f9; }
+    #login-view { display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
+    input { padding: 10px; width: 200px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
+    button { padding: 10px 20px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #005a9e; }
+    #msg { color: red; font-size: 13px; min-height: 18px; }
+    #frame-wrap { display: none; position: fixed; inset: 0; background: white; z-index: 9999; }
+    #frame-wrap iframe { width: 100%; height: 100%; border: none; }
+    #logout-btn { position: fixed; top: 12px; right: 12px; z-index: 10000;
+      background: rgba(0,0,0,0.5); color: white; border: none;
+      border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+  </style>
 </head>
 <body>
 
-<div class="login-card">
+<div id="login-view">
+  <div class="card">
     <h2>Dashboard Login</h2>
-    <input type="password" id="passInput" placeholder="Enter Password">
+    <input type="password" id="pass" placeholder="Enter Password"
+           onkeydown="if(event.key==='Enter') check()">
     <br>
-    <button onclick="checkPassword()">Access Dashboard</button>
-    <p id="message" style="color: red;"></p>
+    <button onclick="check()">Access Dashboard</button>
+    <p id="msg"></p>
+  </div>
+</div>
+
+<div id="frame-wrap">
+  <button id="logout-btn" onclick="logout()">✕ Logout</button>
+  <iframe id="dash-frame"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+  </iframe>
 </div>
 
 <script>
-    function checkPassword() {
-        const password = document.getElementById('passInput').value;
-        const correctPassword = "123456"; // Set your password here
-        const dashboardUrl = "https://app.powerbi.com/view?r=eyJrIjoiNTI3NGJlMTAtMWIwOC00NThmLTk3YmQtZWZlYmU3YjNmYjRlIiwidCI6IjNkZmI3Mjk1LTI5NDAtNDg2Yy04NmQ2LWRmN2NiNzVmZThkMyIsImMiOjl9&pageName=915faf6be97d307cd079"; // Paste your link here
+  // ✅ الرابط مشفر بـ Base64 - لا يظهر مباشرة في الكود
+  const ENCODED_URL = "اليساراهنا_base64_للرابط";
 
-        if (password === correctPassword) {
-            window.location.href = dashboardUrl;
-        } else {
-            document.getElementById('message').innerText = "Incorrect password. Try again.";
-        }
+  // ✅ كلمة السر مخزنة كـ SHA-256 hash وليس نص واضح
+  // لكلمة "YourPassword123" مثلاً - ولدها من: https://emn178.github.io/online-tools/sha256.html
+  const CORRECT_HASH = "ضع_هنا_الـhash";
+
+  // لحماية من brute force
+  let attempts = 0;
+  let locked = false;
+
+  async function sha256(msg) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+  }
+
+  async function check() {
+    if (locked) { document.getElementById("msg").textContent = "Too many attempts. Refresh page."; return; }
+
+    const val = document.getElementById("pass").value;
+    const h = await sha256(val);
+
+    if (h === CORRECT_HASH) {
+      attempts = 0;
+      document.getElementById("login-view").style.display = "none";
+      document.getElementById("frame-wrap").style.display = "block";
+      // ✅ الرابط يُحلّ فقط عند نجاح تسجيل الدخول
+      document.getElementById("dash-frame").src = atob(ENCODED_URL);
+    } else {
+      attempts++;
+      document.getElementById("pass").value = "";
+      if (attempts >= 5) {
+        locked = true;
+        document.getElementById("msg").textContent = "Account locked. Refresh to try again.";
+      } else {
+        document.getElementById("msg").textContent = `Incorrect password. (${5 - attempts} attempts left)`;
+      }
     }
-</script>
+  }
 
+  function logout() {
+    document.getElementById("dash-frame").src = "";
+    document.getElementById("frame-wrap").style.display = "none";
+    document.getElementById("login-view").style.display = "flex";
+    document.getElementById("pass").value = "";
+    attempts = 0; locked = false;
+  }
+</script>
 </body>
 </html>
