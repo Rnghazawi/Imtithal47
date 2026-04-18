@@ -5,88 +5,273 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Restricted Access</title>
   <style>
-    body { font-family: sans-serif; margin: 0; background: #f4f4f9; }
-    #login-view { display: flex; justify-content: center; align-items: center; height: 100vh; }
-    .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
-    input { padding: 10px; width: 200px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
-    button { padding: 10px 20px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button:hover { background: #005a9e; }
-    #msg { color: red; font-size: 13px; min-height: 18px; }
-    #frame-wrap { display: none; position: fixed; inset: 0; background: white; z-index: 9999; }
-    #frame-wrap iframe { width: 100%; height: 100%; border: none; }
-    #logout-btn { position: fixed; top: 12px; right: 12px; z-index: 10000;
-      background: rgba(0,0,0,0.5); color: white; border: none;
-      border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: white;
+      padding: 2.5rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      width: 320px;
+      text-align: center;
+    }
+
+    .lock-icon {
+      font-size: 36px;
+      margin-bottom: 1rem;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 1.5rem;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s;
+      margin-bottom: 12px;
+      letter-spacing: 3px;
+    }
+
+    input[type="password"]:focus {
+      border-color: #0078d4;
+    }
+
+    button#login-btn {
+      width: 100%;
+      padding: 11px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button#login-btn:hover { background: #005a9e; }
+    button#login-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+    #msg {
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 18px;
+      color: #e53935;
+    }
+
+    #attempts-bar {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 14px;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ddd;
+      transition: background 0.3s;
+    }
+
+    .dot.used { background: #e53935; }
+
+    /* ===== IFRAME OVERLAY ===== */
+    #frame-wrap {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: white;
+      z-index: 9999;
+    }
+
+    #dash-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    #logout-btn {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 10000;
+      background: rgba(0,0,0,0.55);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: background 0.2s;
+    }
+
+    #logout-btn:hover { background: rgba(0,0,0,0.75); }
   </style>
 </head>
 <body>
 
+<!-- ===== LOGIN VIEW ===== -->
 <div id="login-view">
   <div class="card">
-    <h2>Dashboard Login</h2>
-    <input type="password" id="pass" placeholder="Enter Password"
-           onkeydown="if(event.key==='Enter') check()">
-    <br>
-    <button onclick="check()">Access Dashboard</button>
+    <div class="lock-icon">🔒</div>
+    <h2>Dashboard Access</h2>
+    <p class="subtitle">Enter password to continue</p>
+
+    <input
+      type="password"
+      id="pass"
+      placeholder="Password"
+      onkeydown="if(event.key==='Enter') check()"
+      autocomplete="off"
+    />
+
+    <button id="login-btn" onclick="check()">Access Dashboard</button>
+
     <p id="msg"></p>
+
+    <div id="attempts-bar">
+      <div class="dot" id="d1"></div>
+      <div class="dot" id="d2"></div>
+      <div class="dot" id="d3"></div>
+      <div class="dot" id="d4"></div>
+      <div class="dot" id="d5"></div>
+    </div>
   </div>
 </div>
 
+<!-- ===== DASHBOARD VIEW ===== -->
 <div id="frame-wrap">
-  <button id="logout-btn" onclick="logout()">✕ Logout</button>
-  <iframe id="dash-frame"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
-  </iframe>
+  <button id="logout-btn" onclick="logout()">✕ &nbsp;Logout</button>
+  <iframe
+    id="dash-frame"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+  ></iframe>
 </div>
 
 <script>
-  // ✅ الرابط مشفر بـ Base64 - لا يظهر مباشرة في الكود
-  const ENCODED_URL = "اليساراهنا_base64_للرابط";
+  // ─────────────────────────────────────────────
+  //  CONFIG — عدّل هنا فقط
+  // ─────────────────────────────────────────────
 
-  // ✅ كلمة السر مخزنة كـ SHA-256 hash وليس نص واضح
-  // لكلمة "YourPassword123" مثلاً - ولدها من: https://emn178.github.io/online-tools/sha256.html
-  const CORRECT_HASH = "ضع_هنا_الـhash";
+  // رابط الداشبورد مشفّر بـ Base64
+  // لتغيير الرابط: افتح console وشغّل: btoa("الرابط_الجديد")
+  const ENCODED_URL =
+    "aHR0cHM6Ly9hcHAucG93ZXJiaS5jb20vdmlldz9yPWV5SnJJam9pTlRJM05HSmxNVEF0TVdJd09DMDBOVGhtTFRrM1ltUXRaV1psWW1VM1lqTm1ZalJsSWl3aWRDSTZJak5rWm1JM01qazFMVEk1TkRBdE5EZzJZeTA0Tm1RMkxXUm1OMk5pTnpWbVpUaGtNeUlzSW1NaU9qbDkmcGFnZU5hbWU9OTE1ZmFmNmJlOTdkMzA3Y2QwNzk=";
 
-  // لحماية من brute force
+  // SHA-256 لكلمة المرور
+  // الحالي = "123456" — لتغييرها: افتح console وشغّل:
+  //   crypto.subtle.digest("SHA-256", new TextEncoder().encode("كلمتك"))
+  //   .then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")))
+  const CORRECT_HASH =
+    "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_MS   = 60 * 1000; // دقيقة واحدة
+
+  // ─────────────────────────────────────────────
+
   let attempts = 0;
-  let locked = false;
+  let lockedUntil = 0;
 
   async function sha256(msg) {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+    const buf = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(msg)
+    );
+    return [...new Uint8Array(buf)]
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   async function check() {
-    if (locked) { document.getElementById("msg").textContent = "Too many attempts. Refresh page."; return; }
+    const now = Date.now();
 
-    const val = document.getElementById("pass").value;
+    // فحص القفل
+    if (now < lockedUntil) {
+      const secs = Math.ceil((lockedUntil - now) / 1000);
+      setMsg(`Too many attempts. Try again in ${secs}s.`);
+      return;
+    }
+
+    const val = document.getElementById("pass").value.trim();
+    if (!val) return;
+
     const h = await sha256(val);
+    document.getElementById("pass").value = "";
 
     if (h === CORRECT_HASH) {
+      // ✅ دخول ناجح
       attempts = 0;
+      updateDots();
       document.getElementById("login-view").style.display = "none";
       document.getElementById("frame-wrap").style.display = "block";
-      // ✅ الرابط يُحلّ فقط عند نجاح تسجيل الدخول
+      // الرابط يُحلّ هنا فقط — بعد التحقق
       document.getElementById("dash-frame").src = atob(ENCODED_URL);
     } else {
+      // ❌ كلمة خاطئة
       attempts++;
-      document.getElementById("pass").value = "";
-      if (attempts >= 5) {
-        locked = true;
-        document.getElementById("msg").textContent = "Account locked. Refresh to try again.";
+      updateDots();
+
+      if (attempts >= MAX_ATTEMPTS) {
+        lockedUntil = Date.now() + LOCKOUT_MS;
+        attempts = 0;
+        updateDots();
+        document.getElementById("login-btn").disabled = true;
+        setMsg("Account locked for 60 seconds.");
+        setTimeout(() => {
+          document.getElementById("login-btn").disabled = false;
+          setMsg("");
+          updateDots();
+        }, LOCKOUT_MS);
       } else {
-        document.getElementById("msg").textContent = `Incorrect password. (${5 - attempts} attempts left)`;
+        setMsg(`Incorrect password. ${MAX_ATTEMPTS - attempts} attempt${MAX_ATTEMPTS - attempts !== 1 ? "s" : ""} left.`);
       }
     }
   }
 
   function logout() {
-    document.getElementById("dash-frame").src = "";
+    // امسح الـ iframe أولاً
+    document.getElementById("dash-frame").src = "about:blank";
     document.getElementById("frame-wrap").style.display = "none";
     document.getElementById("login-view").style.display = "flex";
-    document.getElementById("pass").value = "";
-    attempts = 0; locked = false;
+    setMsg("");
+  }
+
+  function setMsg(text) {
+    document.getElementById("msg").textContent = text;
+  }
+
+  function updateDots() {
+    for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+      const dot = document.getElementById("d" + i);
+      if (dot) dot.classList.toggle("used", i <= attempts);
+    }
   }
 </script>
+
 </body>
 </html>
